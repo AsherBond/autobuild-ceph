@@ -72,9 +72,10 @@ env.roledefs['gitbuilder_apache_hadoop'] = [
 
 
 def _rpm_install(*packages):
-    sudo("lsb_release -d | grep '7.0 Beta' | rpm -qa | grep epel-release || rpm -Uvh ftp://fr2.rpmfind.net/linux/epel/beta/7/x86_64/epel-release-7-0.1.noarch.rpm")
+    sudo("lsb_release -d | grep '7.0 Beta' | rpm -qa | grep epel-release || rpm -Uvh http://apt-mirror.front.sepia.ceph.com/misc-rpms/epel-release-7-0.2.noarch.rpm")
     sudo("lsb_release -d | egrep '(Fedora|SUSE)' || rpm -qa | grep epel-release ||rpm -Uvh http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm")
-    sudo("yum --assumeyes --quiet update")
+    # This will update to the newest release of the distro IE centos 6.3 to centos 6.5, etc...
+    # sudo("yum --assumeyes --quiet update")
     sudo(' '.join(
             [
                 'yum',
@@ -98,10 +99,11 @@ def _apt_install(*packages):
                 'env DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical',
                 'apt-get',
                 '-q',
+                '-y',
                 '-o', 'Dpkg::Options::=--force-confnew',
                 'install',
-                '--no-install-recommends',
-                '--assume-yes',
+#                '--no-install-recommends',
+#                '--assume-yes',
                 '--',
                 ]
             + list(packages)))
@@ -117,11 +119,12 @@ def _apt_reinstall_for_backports(*packages):
                 'env DEBIAN_FRONTEND=noninteractive DEBIAN_PRIORITY=critical',
                 'apt-get',
                 '-q',
+                '-y',
                 '-o', 'Dpkg::Options::=--force-confnew',
                 'install',
                 '--reinstall',
-                '--no-install-recommends',
-                '--assume-yes',
+#                '--no-install-recommends',
+#                '--assume-yes',
                 '--',
             ]
             + list(packages)))
@@ -147,7 +150,7 @@ def _rh_gitbuilder(flavor, git_repo, extra_remotes={}, extra_packages=[], ignore
     """
     extra_remotes will be fetch but not autobuilt. useful for tags.
     """
-    gitbuilder_commit='6af02f4a25ee6664efabf349777b9cc0edf5706c'
+    gitbuilder_commit='304035b8edaf8d64da77a858af1744f13abcd2ad'
     gitbuilder_origin='git://github.com/ceph/gitbuilder.git'
 
     sudo("initctl list|grep -q '^autobuild-ceph\s' && stop autobuild-ceph || /etc/init.d/autobuild-ceph stop || :")
@@ -261,7 +264,7 @@ def _gitbuilder(flavor, git_repo, extra_remotes={}, extra_packages=[], ignore=[]
     """
     extra_remotes will be fetch but not autobuilt. useful for tags.
     """
-    gitbuilder_commit='6af02f4a25ee6664efabf349777b9cc0edf5706c'
+    gitbuilder_commit='304035b8edaf8d64da77a858af1744f13abcd2ad'
     gitbuilder_origin='git://github.com/ceph/gitbuilder.git'
 
     # shut down old instance, it exists
@@ -561,7 +564,7 @@ def gitbuilder_samba():
     _samba_deps()
     _gitbuilder(
         flavor='samba',
-        git_repo='git://git.samba.org/samba.git',
+        git_repo='git://apt-mirror.front.sepia.ceph.com/samba.git',
         extra_packages=[
             'fakeroot',
             'reprepro',
@@ -631,6 +634,7 @@ def _gitbuilder_ceph(url, flavor):
             'libkeyutils-dev',
             'uuid-dev',
             'libblkid-dev',
+	    'libbz2-dev',
             'libudev-dev',
             'python-pip',
             'python-virtualenv',
@@ -679,6 +683,7 @@ def _deb_builder(git_url, flavor, extra_remotes={}):
             'uuid-dev',
             'uuid-runtime',
             'libblkid-dev',
+	    'libbz2-dev',
             'libudev-dev',
             'libaio-dev',
             'libxml2-dev',
@@ -702,6 +707,7 @@ def _deb_builder(git_url, flavor, extra_remotes={}):
             'libleveldb-dev',
             'yasm',
             'python-nose',
+            'libsnappy-dev',
             ],
         )
     _deb_install_extras()
@@ -728,8 +734,10 @@ def gitbuilder_auto():
 
 @roles('gitbuilder_ceph_rpm')
 def gitbuilder_ceph_rpm():
-    _gitbuilder_ceph_rpm('https://github.com/ceph/ceph.git', 'ceph-rpm')
-    _sync_to_gitbuilder('ceph', 'rpm', 'basic')
+    _gitbuilder_ceph_rpm('https://github.com/ceph/ceph.git', 'auto')
+    hostname = run('hostname -s')
+    flavor = hostname.split('-')[-1]
+    _sync_to_gitbuilder('ceph', 'rpm', flavor)
 
 def _gitbuilder_ceph_rpm(url, flavor):
     _rh_gitbuilder(
@@ -751,6 +759,7 @@ def _gitbuilder_ceph_rpm(url, flavor):
             'libblkid-devel',
             'libudev',
             'libudev-devel',
+	    'bzip2-devel',
             'fcgi',
             'fcgi-devel',
             'xfsprogs',
@@ -827,7 +836,7 @@ def _sync_to_gitbuilder(package, format, flavor):
             format=format,
             dist_or_codename=dist_or_codename,
             flavor=flavor))
-        sudo('sed -i "s;redhatenterpriseserver;rhel;g" rsync-target"')
+        sudo('sed -i "s;redhatenterpriseserver;rhel;g" rsync-target')
         _sync_rsync_keys()
 
 def _sync_rsync_keys():
@@ -1070,4 +1079,6 @@ def install_git():
                 sudo('rm -Rf /srv/src/git-{version}'.format(version=git_version))
 
 def _ceph_extras():
-    sudo('lsb_release -c | grep -q -e precise -e quantal -e raring && echo deb http://ceph.com/packages/ceph-extras/debian $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph-extras.list')
+    sudo('lsb_release -c | grep -q -e precise -e quantal -e raring && ' +
+    'echo deb http://ceph.com/packages/ceph-extras/debian $(lsb_release -sc) main ' +
+    '| sudo tee /etc/apt/sources.list.d/ceph-extras.list || echo Ceph-Extras unsupported')

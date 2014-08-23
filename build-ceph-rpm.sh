@@ -8,6 +8,7 @@ rm -rf src/leveldb
 rm -rf src/libs3
 rm -rf src/mongoose
 rm -rf src/civetweb
+rm -rf src/rocksdb
 rm -rf src/erasure-code/jerasure/gf-complete
 rm -rf src/erasure-code/jerasure/jerasure
 rm -rf .git/modules/
@@ -85,6 +86,7 @@ mkdir -p ${BUILDAREA}/SPECS
 mkdir -p ${BUILDAREA}/RPMS
 mkdir -p ${BUILDAREA}/BUILD
 cp -a ceph-*.tar.bz2 ${BUILDAREA}/SOURCES/.
+cp -a *.patch ${BUILDAREA}/SOURCES || true
 
 # If this is a release candidate, identified by having -rc[0-9] appended to
 # the version number, then fix up the generated rpm spec file by moving the
@@ -191,7 +193,7 @@ baseurl=http://gitbuilder.ceph.com/${TARGET}/ref/${BRANCH}/\$basearch
 enabled=1
 gpgcheck=1
 type=rpm-md
-gpgkey=https://ceph.com/git/?p=ceph.git;a=blob_plain;f=keys/autobuild.asc
+gpgkey=http://ceph.com/git/?p=ceph.git;a=blob_plain;f=keys/autobuild.asc
 
 [Ceph-noarch]
 name=Ceph noarch packages
@@ -199,7 +201,7 @@ baseurl=http://gitbuilder.ceph.com/${TARGET}/ref/${BRANCH}/noarch
 enabled=1
 gpgcheck=1
 type=rpm-md
-gpgkey=https://ceph.com/git/?p=ceph.git;a=blob_plain;f=keys/autobuild.asc
+gpgkey=http://ceph.com/git/?p=ceph.git;a=blob_plain;f=keys/autobuild.asc
 
 [ceph-source]
 name=Ceph source packages
